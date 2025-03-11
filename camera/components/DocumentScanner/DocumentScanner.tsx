@@ -51,8 +51,8 @@ const DocumentScanner = forwardRef<{ handleImageCapture: (canvas: HTMLCanvasElem
         
         // Detect corners and store them - using original detection algorithm
         const detectedCorners = documentScanner.detect(canvas);
-        setDetectedCorners(detectedCorners);
-        setCorners(detectedCorners);
+        setDetectedCorners([...detectedCorners]); // Store a copy of the detected corners
+        setCorners([...detectedCorners]); // Set initial working corners
         
         // Crop with detected corners
         const croppedCanvas = documentScanner.crop(canvas, detectedCorners);
@@ -94,6 +94,30 @@ const DocumentScanner = forwardRef<{ handleImageCapture: (canvas: HTMLCanvasElem
         onError?.(error instanceof Error ? error : new Error('Failed to update image'));
       }
     }, [documentScanner, originalImage, enhancementMode, onImageProcessed, onError]);
+
+    const handleAutoDetect = useCallback(() => {
+      if (!detectedCorners || !originalImage || !documentScanner) return;
+      
+      try {
+        console.log('Applying auto-detected corners');
+        
+        // Reset to the original detected corners (create a fresh copy)
+        const originalDetectedCorners = [...detectedCorners];
+        setCorners(originalDetectedCorners);
+        
+        // Re-crop with original detected corners
+        const croppedCanvas = documentScanner.crop(originalImage, originalDetectedCorners);
+        setCroppedImage(croppedCanvas);
+        
+        // Apply enhancement to the cropped image
+        const enhancedCanvas = documentScanner.enhance(croppedCanvas, enhancementMode);
+        setProcessedImage(enhancedCanvas);
+        onImageProcessed?.(enhancedCanvas);
+      } catch (error) {
+        console.error('Error applying auto-detected corners:', error);
+        onError?.(error instanceof Error ? error : new Error('Failed to apply auto-detected corners'));
+      }
+    }, [detectedCorners, documentScanner, originalImage, enhancementMode, onImageProcessed, onError]);
 
     const handleEnhancementModeChange = useCallback((mode: EnhancementMode) => {
       if (!documentScanner || !croppedImage) return;
@@ -268,6 +292,7 @@ const DocumentScanner = forwardRef<{ handleImageCapture: (canvas: HTMLCanvasElem
             customRatio={customRatio}
             isDocLocked={isDocLocked}
             onDocLockToggle={handleDocLockToggle}
+            onAutoDetect={handleAutoDetect}
           />
         )}
       </div>

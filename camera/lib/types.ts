@@ -31,4 +31,5 @@ export interface ImagePreviewProps {
   customRatio?: { width: number, height: number };
   isDocLocked?: boolean;
   onDocLockToggle?: (locked: boolean) => void;
+  onAutoDetect?: () => void;
 } 

@@ -16,7 +16,8 @@ export default function ImagePreview({
   onAspectRatioChange,
   customRatio = { width: 1, height: 1 },
   isDocLocked = false,
-  onDocLockToggle
+  onDocLockToggle,
+  onAutoDetect
 }: ImagePreviewProps) {
   const originalCanvasRef = useRef<HTMLCanvasElement>(null);
   const processedCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -295,10 +296,11 @@ export default function ImagePreview({
   };
 
   const handleAutoDetect = () => {
-    // Always use the original corners from props, not local corners
-    if (corners) {
-      onCornersChange?.(corners);
-    }
+    if (!onAutoDetect || isDocLocked) return;
+    
+    // Call the onAutoDetect callback from the parent component
+    console.log('Auto detect button clicked');
+    onAutoDetect();
   };
 
   const handleToggleLock = () => {
