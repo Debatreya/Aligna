@@ -14,7 +14,9 @@ export default function ImagePreview({
   onEnhancementModeChange,
   aspectRatio = 'auto',
   onAspectRatioChange,
-  customRatio = { width: 1, height: 1 }
+  customRatio = { width: 1, height: 1 },
+  isDocLocked = false,
+  onDocLockToggle
 }: ImagePreviewProps) {
   const originalCanvasRef = useRef<HTMLCanvasElement>(null);
   const processedCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -26,6 +28,7 @@ export default function ImagePreview({
   const [timestamp, setTimestamp] = useState<string>('');
   const cornerPointRadius = 12; // Increased from 5 for better touch support
 
+  // Update local corners when props change
   useEffect(() => {
     setLocalCorners(corners);
     // Calculate the auto-detected aspect ratio when corners change
@@ -110,6 +113,7 @@ export default function ImagePreview({
     drawImage();
   }, [original]);
 
+  // Update processed image when it changes
   useEffect(() => {
     const drawProcessed = async () => {
       if (!processedCanvasRef.current || !processed) return;
@@ -135,6 +139,11 @@ export default function ImagePreview({
     drawProcessed();
   }, [processed]);
 
+  // Redraw corners when lock state changes
+  useEffect(() => {
+    drawCorners();
+  }, [isDocLocked]);
+
   const drawCorners = () => {
     if (!originalCanvasRef.current || !localCorners) return;
     const ctx = originalCanvasRef.current.getContext('2d', { willReadFrequently: true });
@@ -142,7 +151,21 @@ export default function ImagePreview({
 
     // Clear previous drawings
     ctx.clearRect(0, 0, originalCanvasRef.current.width, originalCanvasRef.current.height);
-    ctx.drawImage(typeof original === 'string' ? new Image() : original, 0, 0);
+    
+    // Create an image object if original is a string
+    let img: HTMLImageElement | HTMLCanvasElement;
+    if (typeof original === 'string') {
+      img = new Image();
+      img.src = original;
+    } else {
+      img = original;
+    }
+    
+    // Draw the image
+    ctx.drawImage(img, 0, 0);
+
+    // Don't draw corners if document is locked
+    if (isDocLocked) return;
 
     // Draw connecting lines with improved rendering for better visibility
     ctx.strokeStyle = 'rgba(0, 255, 0, 0.8)';  // Slightly transparent green
@@ -184,7 +207,7 @@ export default function ImagePreview({
   };
 
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!localCorners) return;
+    if (!localCorners || isDocLocked) return;
 
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
@@ -204,7 +227,7 @@ export default function ImagePreview({
   };
 
   const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
-    if (!localCorners) return;
+    if (!localCorners || isDocLocked) return;
     e.preventDefault(); // Prevent scrolling
 
     const rect = e.currentTarget.getBoundingClientRect();
@@ -226,7 +249,7 @@ export default function ImagePreview({
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (draggingPoint === null || !localCorners) return;
+    if (draggingPoint === null || !localCorners || isDocLocked) return;
 
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
@@ -244,7 +267,7 @@ export default function ImagePreview({
   };
 
   const handleTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
-    if (draggingPoint === null || !localCorners) return;
+    if (draggingPoint === null || !localCorners || isDocLocked) return;
     e.preventDefault(); // Prevent scrolling
 
     const rect = e.currentTarget.getBoundingClientRect();
@@ -272,9 +295,19 @@ export default function ImagePreview({
   };
 
   const handleAutoDetect = () => {
+    // Always use the original corners from props, not local corners
     if (corners) {
       onCornersChange?.(corners);
     }
+  };
+
+  const handleToggleLock = () => {
+    // Toggle the lock state and notify parent component
+    const newLockState = !isDocLocked;
+    onDocLockToggle?.(newLockState);
+    
+    // Redraw corners to show/hide them based on lock state
+    drawCorners();
   };
 
   const handleSaveOriginal = () => {
@@ -292,12 +325,16 @@ export default function ImagePreview({
   };
 
   const handleAspectRatioChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    if (!isDocLocked) return; // Only allow changes if document is locked
+    
     const newRatio = e.target.value as AspectRatio;
     setShowCustomRatio(newRatio === 'custom');
     onAspectRatioChange?.(newRatio, newRatio === 'custom' ? localCustomRatio : undefined);
   };
 
   const handleCustomWidthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!isDocLocked) return; // Only allow changes if document is locked
+    
     const width = parseInt(e.target.value) || 1;
     const newCustomRatio = { ...localCustomRatio, width };
     setLocalCustomRatio(newCustomRatio);
@@ -307,12 +344,19 @@ export default function ImagePreview({
   };
 
   const handleCustomHeightChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!isDocLocked) return; // Only allow changes if document is locked
+    
     const height = parseInt(e.target.value) || 1;
     const newCustomRatio = { ...localCustomRatio, height };
     setLocalCustomRatio(newCustomRatio);
     if (aspectRatio === 'custom') {
       onAspectRatioChange?.('custom', newCustomRatio);
     }
+  };
+
+  const handleEnhancementModeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    if (!isDocLocked) return; // Only allow changes if document is locked
+    onEnhancementModeChange?.(e.target.value as any);
   };
 
   return (
@@ -331,8 +375,16 @@ export default function ImagePreview({
             onTouchEnd={handleTouchEnd}
           />
           <div className={styles.buttonGroup}>
-            <button onClick={handleAutoDetect} className={styles.button}>
-              Auto Detect
+            {!isDocLocked && (
+              <button onClick={handleAutoDetect} className={styles.button}>
+                Auto Detect
+              </button>
+            )}
+            <button 
+              onClick={handleToggleLock} 
+              className={`${styles.button} ${isDocLocked ? styles.unlockButton : styles.lockButton}`}
+            >
+              {isDocLocked ? 'Unlock Doc' : 'Lock Doc'}
             </button>
             <button onClick={handleSaveOriginal} className={styles.button}>
               Save Original
@@ -355,13 +407,14 @@ export default function ImagePreview({
         )}
       </div>
       
-      <div className={styles.controls}>
+      <div className={`${styles.controls} ${!isDocLocked ? styles.disabledControls : ''}`}>
         <div className={styles.controlGroup}>
           <label className={styles.label}>Enhancement Mode:</label>
           <select
             value={enhancementMode}
-            onChange={(e) => onEnhancementModeChange?.(e.target.value as any)}
+            onChange={handleEnhancementModeChange}
             className={styles.select}
+            disabled={!isDocLocked}
           >
             <option value="original">Original</option>
             <option value="magic">Magic</option>
@@ -376,6 +429,7 @@ export default function ImagePreview({
             value={aspectRatio}
             onChange={handleAspectRatioChange}
             className={styles.select}
+            disabled={!isDocLocked}
           >
             <option value="auto">Auto ({autoDetectedRatio})</option>
             <option value="square">Square (1:1)</option>
@@ -396,6 +450,7 @@ export default function ImagePreview({
                 value={localCustomRatio.width}
                 onChange={handleCustomWidthChange}
                 className={styles.numberInput}
+                disabled={!isDocLocked}
               />
             </div>
             <span className={styles.ratioSeparator}>:</span>
@@ -407,6 +462,7 @@ export default function ImagePreview({
                 value={localCustomRatio.height}
                 onChange={handleCustomHeightChange}
                 className={styles.numberInput}
+                disabled={!isDocLocked}
               />
             </div>
           </div>

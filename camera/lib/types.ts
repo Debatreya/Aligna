@@ -1,9 +1,11 @@
+import { ChangeEvent } from 'react';
+
 export interface Point {
   x: number;
   y: number;
 }
 
-export type EnhancementMode = 'magic' | 'bw' | 'color' | 'original';
+export type EnhancementMode = 'original' | 'magic' | 'bw' | 'color';
 
 export type AspectRatio = 'auto' | 'square' | '4:3' | '16:9' | '3:2' | 'custom';
 
@@ -27,4 +29,6 @@ export interface ImagePreviewProps {
   aspectRatio?: AspectRatio;
   onAspectRatioChange?: (ratio: AspectRatio, customRatio?: { width: number, height: number }) => void;
   customRatio?: { width: number, height: number };
+  isDocLocked?: boolean;
+  onDocLockToggle?: (locked: boolean) => void;
 } 

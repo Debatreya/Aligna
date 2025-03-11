@@ -57,6 +57,22 @@
   background-color: #0051b3;
 }
 
+.lockButton {
+  background-color: #4caf50; /* Green */
+}
+
+.lockButton:hover {
+  background-color: #3e8e41; /* Darker green */
+}
+
+.unlockButton {
+  background-color: #f44336; /* Red */
+}
+
+.unlockButton:hover {
+  background-color: #d32f2f; /* Darker red */
+}
+
 .controls {
   display: flex;
   flex-direction: row;
@@ -70,6 +86,13 @@
   margin: 1rem auto;
   width: fit-content;
   flex-wrap: wrap;
+  transition: opacity 0.3s, filter 0.3s;
+}
+
+.disabledControls {
+  opacity: 0.6;
+  filter: grayscale(50%);
+  pointer-events: none;
 }
 
 .controlGroup {
