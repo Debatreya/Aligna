@@ -7,6 +7,12 @@ import CameraCapture from '../CameraCapture/CameraCapture';
 import ImagePreview from '../ImagePreview/ImagePreview';
 import styles from './styles.module.css';
 
+declare global {
+  interface Window {
+    cv: any; // You can replace 'any' with a more specific type if needed
+  }
+}
+
 // Helper function to create a deep copy of points array
 const clonePoints = (points: Point[]): Point[] => {
   return points.map(point => ({ ...point }));
@@ -27,22 +33,30 @@ const DocumentScanner = forwardRef<{ handleImageCapture: (canvas: HTMLCanvasElem
     const [customRatio, setCustomRatio] = useState<{ width: number, height: number }>({ width: 1, height: 1 });
     const [isProcessing, setIsProcessing] = useState(false);
     const [isDocLocked, setIsDocLocked] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-      const script = document.createElement('script');
-      script.src = '/opencv/opencv.js';
-      script.async = true;
-      script.onload = () => {
-        cv.onRuntimeInitialized = () => {
-          setDocumentScanner(new Scanner());
+      // Load OpenCV
+      if (!window.cv) {
+        const script = document.createElement('script');
+        script.src = '/opencv/opencv.js';
+        script.async = true;
+        script.onload = () => {
+          window.cv.onRuntimeInitialized = () => {
+            setDocumentScanner(new Scanner());
+          };
         };
-      };
-      document.body.appendChild(script);
-
-      return () => {
-        document.body.removeChild(script);
-      };
-    }, []);
+        script.onerror = () => {
+          onError?.(new Error('Failed to load OpenCV'));
+        };
+        document.body.appendChild(script);
+        return () => {
+          document.body.removeChild(script);
+        };
+      } else {
+        setDocumentScanner(new Scanner());
+      }
+    }, [onError]);
 
     const handleImageCapture = useCallback(async (canvas: HTMLCanvasElement) => {
       if (!documentScanner) return;
@@ -282,7 +296,7 @@ const DocumentScanner = forwardRef<{ handleImageCapture: (canvas: HTMLCanvasElem
         {originalImage && (
           <ImagePreview
             original={originalImage}
-            processed={processedImage}
+            processed={processedImage || undefined}
             corners={corners}
             onCornersChange={handleCornersChange}
             enhancementMode={enhancementMode}

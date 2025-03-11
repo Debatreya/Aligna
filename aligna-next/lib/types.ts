@@ -1,5 +1,3 @@
-import { ChangeEvent } from 'react';
-
 export interface Point {
   x: number;
   y: number;
