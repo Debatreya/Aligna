@@ -21,7 +21,10 @@ export default function Home() {
 
   return (
     <main className={styles.main}>
-      <h1 className={styles.title}>Document Scanner</h1>
+      <div className={styles.titleContainer}>
+        <h1 className={styles.title}>Aligna</h1>
+        <h2 className={styles.subtitle}>The Document Scanner</h2>
+      </div>
       
       {error && (
         <div className={styles.error}>

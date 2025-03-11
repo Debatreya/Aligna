@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Camera App</title>
+    <title>Aligna - Document Scanner</title>
     <script type="text/javascript">
       var Module = {
         onRuntimeInitialized() {
@@ -19,9 +19,39 @@
       };
     </script>
     <script async src="https://docs.opencv.org/4.8.0/opencv.js" type="text/javascript"></script>
+    <style>
+      .app-header {
+        text-align: center;
+        margin-bottom: 1.5rem;
+      }
+      .app-title {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        color: #2563eb;
+      }
+      .app-subtitle {
+        font-size: 1.25rem;
+        font-weight: 500;
+        color: #64748b;
+        margin-top: 0;
+      }
+      @media (max-width: 640px) {
+        .app-title {
+          font-size: 1.75rem;
+        }
+        .app-subtitle {
+          font-size: 1rem;
+        }
+      }
+    </style>
   </head>
   <body>
     <div id="status">OpenCV.js is loading...</div>
+    <header class="app-header">
+      <h1 class="app-title">Aligna</h1>
+      <h2 class="app-subtitle">The Document Scanner</h2>
+    </header>
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>

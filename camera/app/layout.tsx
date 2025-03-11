@@ -5,8 +5,8 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Document Scanner",
-  description: "A web-based document scanner using OpenCV.js",
+  title: "Aligna - Document Scanner",
+  description: "A powerful document scanning application with intelligent corner detection and image enhancement capabilities",
 };
 
 export default function RootLayout({
