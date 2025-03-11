@@ -246,8 +246,51 @@ export class DocumentScanner {
     }
   }
 
-  enhance(canvas: HTMLCanvasElement, mode: 'magic' | 'bw' | 'color' = 'magic'): HTMLCanvasElement {
+  enhance(canvas: HTMLCanvasElement, mode: 'magic' | 'bw' | 'color' | 'original' = 'magic'): HTMLCanvasElement {
     try {
+      // Handle color mode with Canvas API to avoid OpenCV issues
+      if (mode === 'color') {
+        const resultCanvas = document.createElement('canvas');
+        resultCanvas.width = canvas.width;
+        resultCanvas.height = canvas.height;
+        const ctx = resultCanvas.getContext('2d', { willReadFrequently: true });
+        
+        if (!ctx) {
+          throw new Error('Could not get canvas context');
+        }
+        
+        // Draw the original image
+        ctx.drawImage(canvas, 0, 0);
+        
+        try {
+          // Get the image data
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const data = imageData.data;
+          
+          // Apply contrast and brightness adjustment
+          const contrast = 1.2;  // 1.0 means no change
+          const brightness = 10; // 0 means no change
+          
+          for (let i = 0; i < data.length; i += 4) {
+            // Adjust RGB values (skip alpha)
+            for (let j = 0; j < 3; j++) {
+              data[i + j] = Math.min(255, Math.max(0, 
+                contrast * (data[i + j] - 128) + 128 + brightness
+              ));
+            }
+          }
+          
+          // Put the modified image data back
+          ctx.putImageData(imageData, 0, 0);
+        } catch (error) {
+          console.error("Error in Canvas-based color enhancement:", error);
+          // Just keep the original if enhancement fails
+        }
+        
+        return resultCanvas;
+      }
+      
+      // For other modes (magic, bw, original), use OpenCV
       let cv = this.cv;
       const img = cv.imread(canvas);
       let result = new cv.Mat();
@@ -292,26 +335,8 @@ export class DocumentScanner {
           grayBW.delete();
           break;
 
-        case 'color':
-          // Apply bilateral filter for edge-preserving smoothing
-          let bilateral = new cv.Mat();
-          cv.bilateralFilter(img, bilateral, 9, 75, 75);
-
-          // Enhance contrast
-          let contrast = new cv.Mat();
-          cv.convertScaleAbs(bilateral, contrast, 1.1, 0);
-
-          // Apply unsharp mask
-          let blurredColor = new cv.Mat();
-          cv.GaussianBlur(contrast, blurredColor, new cv.Size(0, 0), 3);
-          cv.addWeighted(contrast, 1.5, blurredColor, -0.5, 0, result);
-
-          bilateral.delete();
-          contrast.delete();
-          blurredColor.delete();
-          break;
-
         default:
+          // Original mode
           img.copyTo(result);
           break;
       }
@@ -328,7 +353,15 @@ export class DocumentScanner {
       return resultCanvas;
     } catch (error) {
       console.error("Error in enhance method:", error);
-      throw error;
+      // Return original canvas if enhancement fails
+      const fallbackCanvas = document.createElement('canvas');
+      fallbackCanvas.width = canvas.width;
+      fallbackCanvas.height = canvas.height;
+      const ctx = fallbackCanvas.getContext('2d', { willReadFrequently: true });
+      if (ctx) {
+        ctx.drawImage(canvas, 0, 0);
+      }
+      return fallbackCanvas;
     }
   }
 } 

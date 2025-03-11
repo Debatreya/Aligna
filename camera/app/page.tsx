@@ -2,7 +2,6 @@
 
 import { useState, useRef } from 'react';
 import DocumentScanner from '@/components/DocumentScanner/DocumentScanner';
-import { downloadCanvas } from '@/utils/canvas-helpers';
 import styles from './page.module.css';
 
 export default function Home() {
@@ -56,12 +55,6 @@ export default function Home() {
     reader.readAsDataURL(file);
   };
 
-  const handleSaveImage = () => {
-    if (processedImage) {
-      downloadCanvas(processedImage);
-    }
-  };
-
   return (
     <main className={styles.main}>
       <h1 className={styles.title}>Document Scanner</h1>
@@ -93,17 +86,6 @@ export default function Home() {
         onImageProcessed={handleProcessedImage}
         onError={handleError}
       />
-
-      {processedImage && (
-        <div className={styles.saveContainer}>
-          <button 
-            className={styles.saveButton}
-            onClick={handleSaveImage}
-          >
-            Save Document
-          </button>
-        </div>
-      )}
     </main>
   );
 }
