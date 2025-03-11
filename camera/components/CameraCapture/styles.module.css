@@ -2,7 +2,6 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1rem;
   width: 100%;
   max-width: 800px;
   margin: 0 auto;
@@ -10,10 +9,12 @@
 
 .videoContainer {
   width: 100%;
-  aspect-ratio: 16/9;
+  aspect-ratio: 4/3;
   background-color: #000;
-  border-radius: 8px;
+  position: relative;
   overflow: hidden;
+  border-radius: 8px;
+  margin-bottom: 1rem;
 }
 
 .video {
@@ -24,39 +25,93 @@
 
 .controls {
   display: flex;
-  gap: 1rem;
+  flex-direction: row;
+  flex-wrap: wrap;
   justify-content: center;
+  gap: 0.5rem;
   width: 100%;
+  margin-bottom: 1rem;
 }
 
 .button {
-  padding: 0.75rem 1.5rem;
-  border: none;
-  border-radius: 4px;
   background-color: #0070f3;
   color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 0.5rem 1rem;
   font-size: 1rem;
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: background-color 0.2s;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .button:hover {
-  background-color: #0051cc;
+  background-color: #0051a8;
+}
+
+.button:active {
+  background-color: #003d7a;
 }
 
 .stopButton {
-  background-color: #dc2626;
+  background-color: #f44336;
 }
 
 .stopButton:hover {
-  background-color: #b91c1c;
+  background-color: #d32f2f;
 }
 
 .error {
-  color: #dc2626;
+  color: #f44336;
+  margin-top: 0.5rem;
   text-align: center;
-  padding: 0.5rem;
+  max-width: 100%;
+  word-break: break-word;
+}
+
+.fileUploadLabel {
+  background-color: #4caf50;
+  color: white;
+  border: none;
   border-radius: 4px;
-  background-color: #fee2e2;
-  width: 100%;
+  padding: 0.5rem 1rem;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  display: inline-block;
+  text-align: center;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.fileUploadLabel:hover {
+  background-color: #388e3c;
+}
+
+.fileUploadLabel:active {
+  background-color: #2e7d32;
+}
+
+.fileInput {
+  width: 0.1px;
+  height: 0.1px;
+  opacity: 0;
+  overflow: hidden;
+  position: absolute;
+  z-index: -1;
+}
+
+@media (max-width: 600px) {
+  .controls {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .button, .fileUploadLabel {
+    width: 100%;
+    margin: 0.25rem 0;
+    padding: 0.75rem 1rem;
+    font-size: 1.1rem;
+  }
 } 

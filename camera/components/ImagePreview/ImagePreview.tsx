@@ -28,7 +28,7 @@ export default function ImagePreview({
   const [localCustomRatio, setLocalCustomRatio] = useState(customRatio);
   const [autoDetectedRatio, setAutoDetectedRatio] = useState<string>('Auto');
   const [timestamp, setTimestamp] = useState<string>('');
-  const cornerPointRadius = 15; // Increased for better touch support
+  const cornerPointRadius = 20; // Increased for better touch support
 
   // Keep a reference to the latest corners
   const latestCornersRef = useRef(localCorners);
@@ -242,7 +242,7 @@ export default function ImagePreview({
   const debouncedProcessCorners = useCallback(
     debounce((corners: Point[]) => {
       onCornersChange?.(corners);
-    }, 200),
+    }, 100), // reduced from 200ms to 100ms for better responsiveness
     [onCornersChange]
   );
 
@@ -252,28 +252,6 @@ export default function ImagePreview({
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    const scaleX = e.currentTarget.width / rect.width;
-    const scaleY = e.currentTarget.height / rect.height;
-    const scaledX = x * scaleX;
-    const scaledY = y * scaleY;
-
-    const pointIndex = localCorners.findIndex(
-      (point) => Math.hypot(point.x - scaledX, point.y - scaledY) < cornerPointRadius * 2  // Increased touch area
-    );
-
-    if (pointIndex !== -1) {
-      setDraggingPoint(pointIndex);
-    }
-  };
-
-  const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
-    if (!localCorners || isDocLocked) return;
-    e.preventDefault(); // Prevent scrolling
-
-    const rect = e.currentTarget.getBoundingClientRect();
-    const touch = e.touches[0];
-    const x = touch.clientX - rect.left;
-    const y = touch.clientY - rect.top;
     const scaleX = e.currentTarget.width / rect.width;
     const scaleY = e.currentTarget.height / rect.height;
     const scaledX = x * scaleX;
@@ -313,6 +291,36 @@ export default function ImagePreview({
     debouncedProcessCorners(newCorners);
   };
 
+  const handleMouseUp = () => {
+    if (draggingPoint !== null && latestCornersRef.current) {
+      // On mouse up, make sure we've applied the final position
+      onCornersChange?.(latestCornersRef.current);
+    }
+    setDraggingPoint(null);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    if (!localCorners || isDocLocked) return;
+    e.preventDefault(); // Prevent scrolling
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const touch = e.touches[0];
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
+    const scaleX = e.currentTarget.width / rect.width;
+    const scaleY = e.currentTarget.height / rect.height;
+    const scaledX = x * scaleX;
+    const scaledY = y * scaleY;
+
+    const pointIndex = localCorners.findIndex(
+      (point) => Math.hypot(point.x - scaledX, point.y - scaledY) < cornerPointRadius * 2
+    );
+
+    if (pointIndex !== -1) {
+      setDraggingPoint(pointIndex);
+    }
+  };
+
   const handleTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
     if (draggingPoint === null || !localCorners || isDocLocked) return;
     e.preventDefault(); // Prevent scrolling
@@ -338,14 +346,6 @@ export default function ImagePreview({
     
     // Debounce the expensive processing
     debouncedProcessCorners(newCorners);
-  };
-
-  const handleMouseUp = () => {
-    if (draggingPoint !== null && latestCornersRef.current) {
-      // On mouse up, make sure we've applied the final position
-      onCornersChange?.(latestCornersRef.current);
-    }
-    setDraggingPoint(null);
   };
 
   const handleTouchEnd = () => {
