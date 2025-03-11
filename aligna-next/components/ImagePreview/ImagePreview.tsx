@@ -1,9 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { ImagePreviewProps, Point, AspectRatio } from '@/lib/types';
+import { ImagePreviewProps, Point, AspectRatio, EnhancementMode } from '@/lib/types';
 import { downloadCanvas } from '@/utils/canvas-helpers';
-import { debounce } from '@/utils/debounce';
 import styles from './styles.module.css';
 
 export default function ImagePreview({
@@ -35,56 +34,15 @@ export default function ImagePreview({
   const originalRef = useRef(original);
   const isDocLockedRef = useRef(isDocLocked);
   const cornersUpdateKey = useRef(0); // Used to track when corners are updated
-  
-  // Update refs when props change
-  useEffect(() => {
-    originalRef.current = original;
-    isDocLockedRef.current = isDocLocked;
-  }, [original, isDocLocked]);
-  
-  // Update local corners when props change
-  useEffect(() => {
-    if (!corners) return;
-    
-    setLocalCorners(corners);
-    latestCornersRef.current = corners;
-    
-    // Calculate the auto-detected aspect ratio when corners change
-    if (corners.length === 4) {
-      calculateAutoDetectedRatio(corners);
-    }
-    
-    // Increment the update key to trigger a redraw
-    cornersUpdateKey.current += 1;
-    
-    // Redraw corners on the canvas whenever they change
-    setTimeout(() => {
-      drawCorners();
-    }, 0);
-    
-  }, [corners]);
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined); // Add ref for debounce timeout with proper type and initial value
 
-  useEffect(() => {
-    setShowCustomRatio(aspectRatio === 'custom');
-  }, [aspectRatio]);
-
-  // Set timestamp when the image is first loaded
-  useEffect(() => {
-    if (original && !timestamp) {
-      // Generate a timestamp string in the format YYYYMMDD_HHmmss
-      const now = new Date();
-      const timestampStr = now.getFullYear() +
-                          (now.getMonth() + 1).toString().padStart(2, '0') +
-                          now.getDate().toString().padStart(2, '0') + '_' +
-                          now.getHours().toString().padStart(2, '0') +
-                          now.getMinutes().toString().padStart(2, '0') +
-                          now.getSeconds().toString().padStart(2, '0');
-      setTimestamp(timestampStr);
-    }
-  }, [original, timestamp]);
+  // Helper function to find greatest common divisor (for simplifying ratios)
+  const getGCD = (a: number, b: number): number => {
+    return b === 0 ? a : getGCD(b, a % b);
+  };
 
   // Calculate the aspect ratio from corners
-  const calculateAutoDetectedRatio = (corners: Point[]) => {
+  const calculateAutoDetectedRatio = useCallback((corners: Point[]) => {
     if (!corners || corners.length !== 4) return;
     
     // Calculate width and height based on corners
@@ -106,73 +64,10 @@ export default function ImagePreview({
     // Format as string with actual ratio value
     const ratioText = `${simplifiedWidth}:${simplifiedHeight}`;
     setAutoDetectedRatio(ratioText);
-  };
-  
-  // Helper function to find greatest common divisor (for simplifying ratios)
-  const getGCD = (a: number, b: number): number => {
-    return b === 0 ? a : getGCD(b, a % b);
-  };
-
-  useEffect(() => {
-    const drawImage = async () => {
-      if (!originalCanvasRef.current) return;
-      const ctx = originalCanvasRef.current.getContext('2d', { willReadFrequently: true });
-      if (!ctx) return;
-
-      if (typeof original === 'string') {
-        const img = new Image();
-        img.src = original;
-        await new Promise((resolve) => {
-          img.onload = resolve;
-        });
-        originalCanvasRef.current.width = img.naturalWidth;
-        originalCanvasRef.current.height = img.naturalHeight;
-        ctx.drawImage(img, 0, 0);
-      } else {
-        originalCanvasRef.current.width = original.width;
-        originalCanvasRef.current.height = original.height;
-        ctx.drawImage(original, 0, 0);
-      }
-
-      drawCorners();
-    };
-
-    drawImage();
-  }, [original]);
-
-  // Update processed image when it changes
-  useEffect(() => {
-    const drawProcessed = async () => {
-      if (!processedCanvasRef.current || !processed) return;
-      const ctx = processedCanvasRef.current.getContext('2d', { willReadFrequently: true });
-      if (!ctx) return;
-
-      if (typeof processed === 'string') {
-        const img = new Image();
-        img.src = processed;
-        await new Promise((resolve) => {
-          img.onload = resolve;
-        });
-        processedCanvasRef.current.width = img.naturalWidth;
-        processedCanvasRef.current.height = img.naturalHeight;
-        ctx.drawImage(img, 0, 0);
-      } else {
-        processedCanvasRef.current.width = processed.width;
-        processedCanvasRef.current.height = processed.height;
-        ctx.drawImage(processed, 0, 0);
-      }
-    };
-
-    drawProcessed();
-  }, [processed]);
-
-  // Redraw corners when lock state changes
-  useEffect(() => {
-    drawCorners();
-  }, [isDocLocked]);
+  }, []);
 
   // Draw corners on the canvas
-  const drawCorners = () => {
+  const drawCorners = useCallback(() => {
     if (!originalCanvasRef.current || !localCorners) return;
     const ctx = originalCanvasRef.current.getContext('2d', { willReadFrequently: true });
     if (!ctx) return;
@@ -206,8 +101,8 @@ export default function ImagePreview({
     ctx.strokeStyle = 'rgba(0, 255, 0, 0.8)';  // Slightly transparent green
     ctx.lineWidth = 3;  // Thicker line for better visibility
     ctx.beginPath();
-    localCorners.forEach((point, index) => {
-      if (index === 0) {
+    localCorners.forEach((point, i) => {
+      if (i === 0) {
         ctx.moveTo(point.x, point.y);
       } else {
         ctx.lineTo(point.x, point.y);
@@ -217,7 +112,7 @@ export default function ImagePreview({
     ctx.stroke();
 
     // Draw corner points with improved visibility
-    localCorners.forEach((point, index) => {
+    localCorners.forEach(point => {
       // Outer circle (border)
       ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';  // Black border
       ctx.beginPath();
@@ -236,15 +131,142 @@ export default function ImagePreview({
       ctx.arc(point.x, point.y, cornerPointRadius / 3, 0, 2 * Math.PI);
       ctx.fill();
     });
-  };
+  }, [localCorners, cornerPointRadius, originalRef]);
+
+  // Update refs when props change
+  useEffect(() => {
+    originalRef.current = original;
+    isDocLockedRef.current = isDocLocked;
+  }, [original, isDocLocked]);
+  
+  // Update local corners when props change
+  useEffect(() => {
+    if (!corners) return;
+    
+    setLocalCorners(corners);
+    latestCornersRef.current = corners;
+    
+    // Calculate the auto-detected aspect ratio when corners change
+    if (corners.length === 4) {
+      calculateAutoDetectedRatio(corners);
+    }
+    
+    // Increment the update key to trigger a redraw
+    cornersUpdateKey.current += 1;
+    
+    // Redraw corners on the canvas whenever they change
+    setTimeout(() => {
+      drawCorners();
+    }, 0);
+    
+  }, [corners, calculateAutoDetectedRatio, drawCorners]);
+
+  useEffect(() => {
+    setShowCustomRatio(aspectRatio === 'custom');
+  }, [aspectRatio]);
+
+  // Set timestamp when the image is first loaded
+  useEffect(() => {
+    if (original && !timestamp) {
+      // Generate a timestamp string in the format YYYYMMDD_HHmmss
+      const now = new Date();
+      const timestampStr = now.getFullYear() +
+                          (now.getMonth() + 1).toString().padStart(2, '0') +
+                          now.getDate().toString().padStart(2, '0') + '_' +
+                          now.getHours().toString().padStart(2, '0') +
+                          now.getMinutes().toString().padStart(2, '0') +
+                          now.getSeconds().toString().padStart(2, '0');
+      setTimestamp(timestampStr);
+    }
+  }, [original, timestamp]);
+
+  useEffect(() => {
+    const drawImage = async () => {
+      if (!originalCanvasRef.current) return;
+      const ctx = originalCanvasRef.current.getContext('2d', { willReadFrequently: true });
+      if (!ctx) return;
+
+      if (typeof original === 'string') {
+        const img = new Image();
+        img.src = original;
+        await new Promise((resolve) => {
+          img.onload = resolve;
+        });
+        originalCanvasRef.current.width = img.naturalWidth;
+        originalCanvasRef.current.height = img.naturalHeight;
+        ctx.drawImage(img, 0, 0);
+      } else {
+        originalCanvasRef.current.width = original.width;
+        originalCanvasRef.current.height = original.height;
+        ctx.drawImage(original, 0, 0);
+      }
+
+      drawCorners();
+    };
+
+    drawImage();
+  }, [original, drawCorners]);
+
+  // Update processed image when it changes
+  useEffect(() => {
+    const drawProcessed = async () => {
+      if (!processedCanvasRef.current || !processed) return;
+      const ctx = processedCanvasRef.current.getContext('2d', { willReadFrequently: true });
+      if (!ctx) return;
+
+      if (typeof processed === 'string') {
+        const img = new Image();
+        img.src = processed;
+        await new Promise((resolve) => {
+          img.onload = resolve;
+        });
+        processedCanvasRef.current.width = img.naturalWidth;
+        processedCanvasRef.current.height = img.naturalHeight;
+        ctx.drawImage(img, 0, 0);
+      } else {
+        processedCanvasRef.current.width = processed.width;
+        processedCanvasRef.current.height = processed.height;
+        ctx.drawImage(processed, 0, 0);
+      }
+    };
+
+    drawProcessed();
+  }, [processed]);
+
+  // Redraw corners when lock state changes
+  useEffect(() => {
+    drawCorners();
+  }, [isDocLocked, drawCorners]);
+
+  useEffect(() => {
+    if (corners) {
+      calculateAutoDetectedRatio(corners);
+      drawCorners();
+    }
+  }, [corners, calculateAutoDetectedRatio, drawCorners]);
 
   // Debounced version of onCornersChange to avoid excessive processing
-  const debouncedProcessCorners = useCallback(
-    debounce((corners: Point[]) => {
+  const debouncedProcessCorners = useCallback((corners: Point[]) => {
+    // Clear any existing timeout
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+
+    // Set new timeout
+    debounceTimeoutRef.current = setTimeout(() => {
       onCornersChange?.(corners);
-    }, 100), // reduced from 200ms to 100ms for better responsiveness
-    [onCornersChange]
-  );
+      debounceTimeoutRef.current = undefined;
+    }, 100);
+  }, [onCornersChange]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!localCorners || isDocLocked) return;
@@ -287,7 +309,7 @@ export default function ImagePreview({
     // Redraw corners immediately 
     drawCorners();
     
-    // Debounce the expensive processing
+    // Process corners with debounce
     debouncedProcessCorners(newCorners);
   };
 
@@ -344,7 +366,7 @@ export default function ImagePreview({
     // Redraw corners immediately 
     drawCorners();
     
-    // Debounce the expensive processing
+    // Process corners with debounce
     debouncedProcessCorners(newCorners);
   };
 
@@ -425,7 +447,7 @@ export default function ImagePreview({
 
   const handleEnhancementModeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     if (!isDocLocked) return; // Only allow changes if document is locked
-    onEnhancementModeChange?.(e.target.value as any);
+    onEnhancementModeChange?.(e.target.value as EnhancementMode);
   };
 
   return (

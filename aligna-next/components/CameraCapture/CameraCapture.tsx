@@ -21,9 +21,21 @@ export default function CameraCapture({ onCapture, onError }: CameraCaptureProps
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       // For older browsers and iOS Safari which may not support navigator.mediaDevices
       const mediaDevices = navigator.mediaDevices || 
-        ((navigator as any).mozGetUserMedia || 
-        (navigator as any).webkitGetUserMedia || 
-        (navigator as any).msGetUserMedia);
+        ((navigator as Navigator & {
+          mozGetUserMedia?: MediaDevices['getUserMedia'];
+          webkitGetUserMedia?: MediaDevices['getUserMedia'];
+          msGetUserMedia?: MediaDevices['getUserMedia'];
+        }).mozGetUserMedia || 
+        (navigator as Navigator & {
+          mozGetUserMedia?: MediaDevices['getUserMedia'];
+          webkitGetUserMedia?: MediaDevices['getUserMedia'];
+          msGetUserMedia?: MediaDevices['getUserMedia'];
+        }).webkitGetUserMedia || 
+        (navigator as Navigator & {
+          mozGetUserMedia?: MediaDevices['getUserMedia'];
+          webkitGetUserMedia?: MediaDevices['getUserMedia'];
+          msGetUserMedia?: MediaDevices['getUserMedia'];
+        }).msGetUserMedia);
         
       if (!mediaDevices) {
         setError('Camera access is not supported by this browser');
@@ -44,9 +56,21 @@ export default function CameraCapture({ onCapture, onError }: CameraCaptureProps
     try {
       // Handle iOS Safari and other browsers that may have different getUserMedia implementations
       const getUserMedia = navigator.mediaDevices?.getUserMedia || 
-        ((navigator as any).mozGetUserMedia || 
-        (navigator as any).webkitGetUserMedia || 
-        (navigator as any).msGetUserMedia);
+        ((navigator as Navigator & {
+          mozGetUserMedia?: MediaDevices['getUserMedia'];
+          webkitGetUserMedia?: MediaDevices['getUserMedia'];
+          msGetUserMedia?: MediaDevices['getUserMedia'];
+        }).mozGetUserMedia || 
+        (navigator as Navigator & {
+          mozGetUserMedia?: MediaDevices['getUserMedia'];
+          webkitGetUserMedia?: MediaDevices['getUserMedia'];
+          msGetUserMedia?: MediaDevices['getUserMedia'];
+        }).webkitGetUserMedia || 
+        (navigator as Navigator & {
+          mozGetUserMedia?: MediaDevices['getUserMedia'];
+          webkitGetUserMedia?: MediaDevices['getUserMedia'];
+          msGetUserMedia?: MediaDevices['getUserMedia'];
+        }).msGetUserMedia);
       
       if (!getUserMedia) {
         throw new Error('Camera access is not supported by this browser');

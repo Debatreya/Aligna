@@ -1,13 +1,8 @@
 import { Point } from './types';
-
-declare global {
-  interface Window {
-    cv: any;
-  }
-}
+import type { Contour } from '@techstark/opencv-js';
 
 export class DocumentScanner {
-  private cv: any;
+  private cv: typeof window.cv;
 
   constructor() {
     if (typeof window !== 'undefined' && !("cv" in window)) {
@@ -21,16 +16,16 @@ export class DocumentScanner {
     return Math.hypot(p1.x - p2.x, p1.y - p2.y);
   }
 
-  private getCornerPoints(contour: any): Point[] {
+  private getCornerPoints(contour: Contour): Point[] {
     try {
-      let cv = this.cv;
-      let points: Point[] = [];
+      const cv = this.cv;
+      const points: Point[] = [];
       
       if (!contour || contour.size() === 0) {
         throw new Error("Invalid contour: no points found");
       }
       
-      let rect = cv.minAreaRect(contour);
+      const rect = cv.minAreaRect(contour);
       const center = rect.center;
 
       let topLeftPoint = {x: 0, y: 0};
@@ -48,6 +43,7 @@ export class DocumentScanner {
       for (let i = 0; i < contour.data32S.length; i += 2) {
         const point = { x: contour.data32S[i], y: contour.data32S[i + 1] };
         const distance = this.distance(point, center);
+        
         if (point.x < center.x && point.y < center.y) {
           if (distance > topLeftDistance) {
             topLeftPoint = point;
@@ -95,7 +91,7 @@ export class DocumentScanner {
 
   detect(source: HTMLImageElement | HTMLCanvasElement): Point[] {
     console.log("Starting document detection");
-    let cv = this.cv;
+    const cv = this.cv;
     
     try {
       const img = cv.imread(source);
@@ -115,8 +111,8 @@ export class DocumentScanner {
       const thresh = new cv.Mat();
       cv.threshold(blur, thresh, 0, 255, cv.THRESH_BINARY + cv.THRESH_OTSU);
 
-      let contours = new cv.MatVector();
-      let hierarchy = new cv.Mat();
+      const contours = new cv.MatVector();
+      const hierarchy = new cv.Mat();
       cv.findContours(thresh, contours, hierarchy, cv.RETR_CCOMP, cv.CHAIN_APPROX_SIMPLE);
       
       console.log("Found", contours.size(), "contours");
@@ -138,7 +134,7 @@ export class DocumentScanner {
       let maxArea = 0;
       let maxContourIndex = -1;
       for (let i = 0; i < contours.size(); ++i) {
-        let contourArea = cv.contourArea(contours.get(i));
+        const contourArea = cv.contourArea(contours.get(i));
         if (contourArea > maxArea) {
           maxArea = contourArea;
           maxContourIndex = i;
@@ -183,7 +179,7 @@ export class DocumentScanner {
   crop(source: HTMLImageElement | HTMLCanvasElement, points?: Point[], width?: number, height?: number): HTMLCanvasElement {
     try {
       console.log("Starting crop with points:", points);
-      let cv = this.cv;
+      const cv = this.cv;
       const img = cv.imread(source);
       console.log("Image read successfully for crop, dimensions:", img.cols, "x", img.rows);
 
@@ -208,29 +204,28 @@ export class DocumentScanner {
       
       console.log("Output dimensions:", width, "x", height);
 
-      let srcTri = cv.matFromArray(4, 1, cv.CV_32FC2, [
+      const srcTri = cv.matFromArray(4, 1, cv.CV_32FC2, [
         points[0].x, points[0].y,
         points[1].x, points[1].y,
         points[3].x, points[3].y,
         points[2].x, points[2].y
       ]);
 
-      let dstTri = cv.matFromArray(4, 1, cv.CV_32FC2, [
+      const dstTri = cv.matFromArray(4, 1, cv.CV_32FC2, [
         0, 0,
         width, 0,
         0, height,
         width, height
       ]);
 
-      let M = cv.getPerspectiveTransform(srcTri, dstTri);
-      let dsize = new cv.Size(width, height);
-      let warpedDst = new cv.Mat();
+      const M = cv.getPerspectiveTransform(srcTri, dstTri);
+      const dsize = new cv.Size(width, height);
+      const warpedDst = new cv.Mat();
       cv.warpPerspective(img, warpedDst, M, dsize, cv.INTER_LINEAR, cv.BORDER_CONSTANT, new cv.Scalar());
 
       const canvas = document.createElement('canvas');
       canvas.width = width;
       canvas.height = height;
-      const ctx = canvas.getContext('2d', { willReadFrequently: true });
       cv.imshow(canvas, warpedDst);
 
       img.delete();
@@ -291,31 +286,31 @@ export class DocumentScanner {
       }
       
       // For other modes (magic, bw, original), use OpenCV
-      let cv = this.cv;
+      const cv = this.cv;
       const img = cv.imread(canvas);
-      let result = new cv.Mat();
+      const result = new cv.Mat();
 
       switch (mode) {
         case 'magic':
           // Apply Gaussian blur to reduce noise
-          let blurred = new cv.Mat();
+          const blurred = new cv.Mat();
           cv.GaussianBlur(img, blurred, new cv.Size(3, 3), 0);
 
           // Convert to grayscale
-          let gray = new cv.Mat();
+          const gray = new cv.Mat();
           cv.cvtColor(blurred, gray, cv.COLOR_RGBA2GRAY);
 
           // Apply adaptive threshold
-          let binary = new cv.Mat();
+          const binary = new cv.Mat();
           cv.adaptiveThreshold(gray, binary, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, 11, 2);
 
           // Apply morphological operations
-          let kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(3, 3));
-          let morphed = new cv.Mat();
+          const kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(3, 3));
+          const morphed = new cv.Mat();
           cv.morphologyEx(binary, morphed, cv.MORPH_CLOSE, kernel);
 
           // Sharpen using Laplacian
-          let laplacian = new cv.Mat();
+          const laplacian = new cv.Mat();
           cv.Laplacian(morphed, laplacian, cv.CV_8U, 3);
           cv.addWeighted(morphed, 1.5, laplacian, -0.5, 0, result);
 
@@ -329,7 +324,7 @@ export class DocumentScanner {
 
         case 'bw':
           // Convert to grayscale and apply OTSU threshold
-          let grayBW = new cv.Mat();
+          const grayBW = new cv.Mat();
           cv.cvtColor(img, grayBW, cv.COLOR_RGBA2GRAY);
           cv.threshold(grayBW, result, 0, 255, cv.THRESH_BINARY + cv.THRESH_OTSU);
           grayBW.delete();
@@ -344,7 +339,6 @@ export class DocumentScanner {
       const resultCanvas = document.createElement('canvas');
       resultCanvas.width = canvas.width;
       resultCanvas.height = canvas.height;
-      const ctx = resultCanvas.getContext('2d', { willReadFrequently: true });
       cv.imshow(resultCanvas, result);
 
       img.delete();
