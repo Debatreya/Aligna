@@ -3,30 +3,46 @@
   flex-direction: column;
   align-items: center;
   padding: 2rem;
-  min-height: 100vh;
-  background-color: #f9fafb;
+  min-height: 100%;
+  background: transparent;
 }
 
 .title {
-  font-size: 2rem;
-  font-weight: 600;
-  margin-bottom: 2rem;
-  color: #111827;
+  font-size: 2.25rem;
+  font-weight: 700;
+  margin-bottom: 2.5rem;
+  color: rgb(var(--foreground-rgb));
+  text-align: center;
+  position: relative;
+}
+
+.title::after {
+  content: '';
+  position: absolute;
+  bottom: -0.75rem;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 4px;
+  background-color: rgb(var(--primary-color));
+  border-radius: 2px;
 }
 
 .error {
   width: 100%;
   max-width: 800px;
   margin-bottom: 2rem;
-  padding: 1rem;
-  background-color: #fee2e2;
-  border-radius: 8px;
-  color: #dc2626;
+  padding: 1rem 1.5rem;
+  background-color: rgba(var(--danger-color), 0.1);
+  border-left: 4px solid rgb(var(--danger-color));
+  border-radius: var(--border-radius);
+  color: rgb(var(--foreground-rgb));
   text-align: center;
+  box-shadow: var(--shadow-sm);
 }
 
 .uploadSection {
-  margin-bottom: 2rem;
+  margin-bottom: 2.5rem;
   width: 100%;
   max-width: 800px;
   display: flex;
@@ -35,38 +51,93 @@
 
 .uploadButton {
   padding: 0.75rem 1.5rem;
-  background-color: #4f46e5;
+  background-color: rgb(var(--primary-color));
   color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--border-radius);
   font-size: 1rem;
+  font-weight: 500;
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: all 0.15s ease-in-out;
+  box-shadow: var(--shadow-md);
 }
 
 .uploadButton:hover {
-  background-color: #4338ca;
+  background-color: rgb(var(--primary-hover));
+  transform: translateY(-1px);
+}
+
+.uploadButton:active {
+  transform: translateY(0);
 }
 
 .saveContainer {
-  margin-top: 2rem;
+  margin-top: 2.5rem;
   width: 100%;
   max-width: 800px;
   display: flex;
   justify-content: center;
+  gap: 1rem;
 }
 
 .saveButton {
   padding: 0.75rem 1.5rem;
-  background-color: #10b981;
+  background-color: rgb(var(--success-color));
   color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--border-radius);
   font-size: 1rem;
+  font-weight: 500;
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: all 0.15s ease-in-out;
+  box-shadow: var(--shadow-md);
 }
 
 .saveButton:hover {
-  background-color: #059669;
+  background-color: rgb(var(--success-hover));
+  transform: translateY(-1px);
+}
+
+.saveButton:active {
+  transform: translateY(0);
+}
+
+@media (max-width: 768px) {
+  .main {
+    padding: 1.5rem 1rem;
+    height: auto;
+    min-height: auto;
+  }
+  
+  .title {
+    font-size: 1.875rem;
+    margin-bottom: 2rem;
+  }
+  
+  .uploadButton, .saveButton {
+    padding: 0.625rem 1.25rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .main {
+    padding: 1rem 0.75rem;
+    height: auto;
+    min-height: auto;
+  }
+  
+  .title {
+    font-size: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  .saveContainer {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .uploadButton, .saveButton {
+    width: 100%;
+    padding: 0.75rem 1rem;
+  }
 } 
