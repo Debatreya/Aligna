@@ -17,12 +17,33 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
       <div class="image-container">
         <div class="image-wrapper">
           <h3>Original Image</h3>
-          <img id="photo" src="" alt="Original photo" style="max-width: 100%; display: none;" />
+          <div class="image-container-with-corners">
+            <img id="photo" src="" alt="Original photo" style="max-width: 100%; display: none;" />
+            <div id="cornerControls" class="corner-controls" style="display: none;">
+              <div class="corner top-left" data-corner="0"></div>
+              <div class="corner top-right" data-corner="1"></div>
+              <div class="corner bottom-right" data-corner="2"></div>
+              <div class="corner bottom-left" data-corner="3"></div>
+            </div>
+          </div>
+          <div class="corner-adjustment-controls" style="display: none;">
+            <button id="autoDetect">Auto Detect</button>
+            <button id="resetCorners">Reset Corners</button>
+          </div>
           <button id="saveOriginal" style="margin-top: 1rem; display: none;">Save Original</button>
         </div>
         <div class="image-wrapper">
           <h3>Processed Image</h3>
           <img id="output" src="" alt="Processed photo" style="max-width: 100%; display: none;" />
+          <div class="enhancement-controls" style="display: none;">
+            <h4>Apply Enhancement</h4>
+            <div class="enhancement-buttons">
+              <button id="enhanceMagic" class="active">Magic</button>
+              <button id="enhanceBW">B&W</button>
+              <button id="enhanceColor">Color</button>
+              <button id="enhanceNone">Original</button>
+            </div>
+          </div>
           <button id="saveProcessed" style="margin-top: 1rem; display: none;">Save Processed</button>
         </div>
       </div>
@@ -41,11 +62,295 @@ const cameraContainer = document.querySelector<HTMLDivElement>('.camera-containe
 const video = document.querySelector<HTMLVideoElement>('#video')!
 const saveOriginalBtn = document.querySelector<HTMLButtonElement>('#saveOriginal')!
 const saveProcessedBtn = document.querySelector<HTMLButtonElement>('#saveProcessed')!
+const cornerControls = document.querySelector<HTMLDivElement>('#cornerControls')!
+const autoDetectBtn = document.querySelector<HTMLButtonElement>('#autoDetect')!
+const resetCornersBtn = document.querySelector<HTMLButtonElement>('#resetCorners')!
+const cornerAdjustmentControls = document.querySelector<HTMLDivElement>('.corner-adjustment-controls')!
+const enhancementControls = document.querySelector<HTMLDivElement>('.enhancement-controls')!
+const enhanceMagicBtn = document.querySelector<HTMLButtonElement>('#enhanceMagic')!
+const enhanceBWBtn = document.querySelector<HTMLButtonElement>('#enhanceBW')!
+const enhanceColorBtn = document.querySelector<HTMLButtonElement>('#enhanceColor')!
+const enhanceNoneBtn = document.querySelector<HTMLButtonElement>('#enhanceNone')!
 
 let stream: MediaStream | null = null;
 let documentScanner: DocumentScanner | null = null;
 let lastOriginalImage: HTMLCanvasElement | null = null;
 let lastProcessedImage: HTMLCanvasElement | null = null;
+let currentPoints: Point[] | null = null;
+let isDragging = false;
+let activeCorner: HTMLElement | null = null;
+let currentEnhancementMode: 'magic' | 'bw' | 'color' | 'none' = 'magic';
+let unenhancedProcessedImage: HTMLCanvasElement | null = null;
+
+// Point interface (if not already defined)
+interface Point {
+  x: number;
+  y: number;
+}
+
+// Function to update corner positions
+const updateCornerPositions = (points: Point[]) => {
+  const imgRect = photoImg.getBoundingClientRect();
+  const corners = cornerControls.querySelectorAll('.corner');
+  
+  corners.forEach((corner, index) => {
+    const point = points[index];
+    (corner as HTMLElement).style.left = `${(point.x / photoImg.naturalWidth) * 100}%`;
+    (corner as HTMLElement).style.top = `${(point.y / photoImg.naturalHeight) * 100}%`;
+  });
+};
+
+// Function to get current corner positions
+const getCurrentCornerPositions = (): Point[] => {
+  const imgRect = photoImg.getBoundingClientRect();
+  const corners = cornerControls.querySelectorAll('.corner');
+  return Array.from(corners).map(corner => {
+    const rect = corner.getBoundingClientRect();
+    return {
+      x: ((rect.left - imgRect.left) / imgRect.width) * photoImg.naturalWidth,
+      y: ((rect.top - imgRect.top) / imgRect.height) * photoImg.naturalHeight
+    };
+  });
+};
+
+// Set active enhancement mode
+const setActiveEnhancement = (mode: 'magic' | 'bw' | 'color' | 'none') => {
+  // Remove active class from all buttons
+  enhanceMagicBtn.classList.remove('active');
+  enhanceBWBtn.classList.remove('active');
+  enhanceColorBtn.classList.remove('active');
+  enhanceNoneBtn.classList.remove('active');
+  
+  // Add active class to selected button
+  switch (mode) {
+    case 'magic':
+      enhanceMagicBtn.classList.add('active');
+      break;
+    case 'bw':
+      enhanceBWBtn.classList.add('active');
+      break;
+    case 'color':
+      enhanceColorBtn.classList.add('active');
+      break;
+    case 'none':
+      enhanceNoneBtn.classList.add('active');
+      break;
+  }
+  
+  currentEnhancementMode = mode;
+  
+  // Apply enhancement to the current image
+  applyEnhancement();
+};
+
+// Apply the current enhancement to the image
+const applyEnhancement = () => {
+  if (!unenhancedProcessedImage || !documentScanner) return;
+  
+  try {
+    if (currentEnhancementMode === 'none') {
+      outputImg.src = unenhancedProcessedImage.toDataURL('image/jpeg', 1.0);
+      lastProcessedImage = unenhancedProcessedImage;
+    } else {
+      const enhancedCanvas = documentScanner.enhance(unenhancedProcessedImage, currentEnhancementMode);
+      outputImg.src = enhancedCanvas.toDataURL('image/jpeg', 1.0);
+      lastProcessedImage = enhancedCanvas;
+    }
+    // Make sure the image is visible
+    outputImg.style.display = 'block';
+  } catch (error) {
+    console.error("Error applying enhancement:", error);
+  }
+};
+
+// Corner drag handlers
+cornerControls.addEventListener('mousedown', (e) => {
+  const corner = (e.target as HTMLElement).closest('.corner');
+  if (corner) {
+    isDragging = true;
+    activeCorner = corner as HTMLElement;
+    activeCorner.classList.add('dragging');
+  }
+});
+
+document.addEventListener('mousemove', (e) => {
+  if (isDragging && activeCorner) {
+    const imgRect = photoImg.getBoundingClientRect();
+    const x = Math.max(0, Math.min(100, ((e.clientX - imgRect.left) / imgRect.width) * 100));
+    const y = Math.max(0, Math.min(100, ((e.clientY - imgRect.top) / imgRect.height) * 100));
+    
+    activeCorner.style.left = `${x}%`;
+    activeCorner.style.top = `${y}%`;
+  }
+});
+
+document.addEventListener('mouseup', () => {
+  if (isDragging && activeCorner) {
+    isDragging = false;
+    activeCorner.classList.remove('dragging');
+    activeCorner = null;
+    
+    // Update processed image with new corner positions
+    if (lastOriginalImage && documentScanner) {
+      const newPoints = getCurrentCornerPositions();
+      const processedCanvas = documentScanner.crop(lastOriginalImage, newPoints);
+      
+      // Store unenhanced version
+      unenhancedProcessedImage = processedCanvas;
+      
+      // Apply current enhancement
+      applyEnhancement();
+    }
+  }
+});
+
+// Mobile touch support for corners
+cornerControls.addEventListener('touchstart', (e) => {
+  const corner = (e.target as HTMLElement).closest('.corner');
+  if (corner) {
+    isDragging = true;
+    activeCorner = corner as HTMLElement;
+    activeCorner.classList.add('dragging');
+    e.preventDefault();
+  }
+}, { passive: false });
+
+document.addEventListener('touchmove', (e) => {
+  if (isDragging && activeCorner && e.touches.length > 0) {
+    const touch = e.touches[0];
+    const imgRect = photoImg.getBoundingClientRect();
+    const x = Math.max(0, Math.min(100, ((touch.clientX - imgRect.left) / imgRect.width) * 100));
+    const y = Math.max(0, Math.min(100, ((touch.clientY - imgRect.top) / imgRect.height) * 100));
+    
+    activeCorner.style.left = `${x}%`;
+    activeCorner.style.top = `${y}%`;
+    e.preventDefault();
+  }
+}, { passive: false });
+
+document.addEventListener('touchend', () => {
+  if (isDragging && activeCorner) {
+    isDragging = false;
+    activeCorner.classList.remove('dragging');
+    activeCorner = null;
+    
+    // Update processed image with new corner positions
+    if (lastOriginalImage && documentScanner) {
+      const newPoints = getCurrentCornerPositions();
+      const processedCanvas = documentScanner.crop(lastOriginalImage, newPoints);
+      
+      // Store unenhanced version
+      unenhancedProcessedImage = processedCanvas;
+      
+      // Apply current enhancement
+      applyEnhancement();
+    }
+  }
+});
+
+// Auto detect corners
+autoDetectBtn.addEventListener('click', () => {
+  if (lastOriginalImage && documentScanner) {
+    try {
+      const points = documentScanner.detect(lastOriginalImage);
+      currentPoints = points;
+      updateCornerPositions(points);
+      
+      // Update processed image
+      const processedCanvas = documentScanner.crop(lastOriginalImage, points);
+      
+      // Store unenhanced version
+      unenhancedProcessedImage = processedCanvas;
+      
+      // Apply current enhancement
+      applyEnhancement();
+    } catch (error) {
+      console.error('Error detecting corners:', error);
+      alert('Failed to detect corners automatically. Try adjusting them manually.');
+    }
+  }
+});
+
+// Reset corners
+resetCornersBtn.addEventListener('click', () => {
+  if (currentPoints) {
+    updateCornerPositions(currentPoints);
+  }
+});
+
+// Enhancement mode buttons
+enhanceMagicBtn.addEventListener('click', () => setActiveEnhancement('magic'));
+enhanceBWBtn.addEventListener('click', () => setActiveEnhancement('bw'));
+enhanceColorBtn.addEventListener('click', () => setActiveEnhancement('color'));
+enhanceNoneBtn.addEventListener('click', () => setActiveEnhancement('none'));
+
+// Process the image (either from file or camera)
+const processImage = (imageElement: HTMLImageElement | HTMLCanvasElement) => {
+  if (!documentScanner) {
+    alert('Document scanner is not ready yet. Please wait.');
+    return;
+  }
+
+  try {
+    // Store original canvas
+    const originalCanvas = document.createElement('canvas');
+    originalCanvas.width = imageElement instanceof HTMLImageElement ? imageElement.naturalWidth : imageElement.width;
+    originalCanvas.height = imageElement instanceof HTMLImageElement ? imageElement.naturalHeight : imageElement.height;
+    const originalCtx = originalCanvas.getContext('2d', { willReadFrequently: true })!;
+    originalCtx.drawImage(imageElement, 0, 0);
+    lastOriginalImage = originalCanvas;
+
+    // Display original image
+    photoImg.src = originalCanvas.toDataURL('image/jpeg', 1.0);
+    photoImg.style.display = 'block';
+
+    try {
+      // Detect document corners
+      const points = documentScanner.detect(imageElement);
+      currentPoints = points;
+      
+      // Show corner controls and update their positions
+      cornerControls.style.display = 'block';
+      cornerAdjustmentControls.style.display = 'block';
+      enhancementControls.style.display = 'block';
+      updateCornerPositions(points);
+      
+      // Crop and transform the image
+      const processedCanvas = documentScanner.crop(imageElement, points);
+      
+      // Store unenhanced version
+      unenhancedProcessedImage = processedCanvas;
+      
+      // Apply enhancement (magic effect by default)
+      setActiveEnhancement('magic');
+      
+      // Ensure output image is displayed
+      outputImg.style.display = 'block';
+      
+      // Show save buttons
+      saveOriginalBtn.style.display = 'inline-block';
+      saveProcessedBtn.style.display = 'inline-block';
+    } catch (error) {
+      console.error('Error processing image:', error);
+      alert('Error processing document. Using original image instead.');
+      
+      // Just show the original image without processing
+      outputImg.src = originalCanvas.toDataURL('image/jpeg', 1.0);
+      outputImg.style.display = 'block';
+      
+      unenhancedProcessedImage = originalCanvas;
+      lastProcessedImage = originalCanvas;
+      
+      // Still show enhancement controls
+      enhancementControls.style.display = 'block';
+      saveOriginalBtn.style.display = 'inline-block';
+      saveProcessedBtn.style.display = 'inline-block';
+    }
+  } catch (error) {
+    console.error('Error processing image:', error);
+    alert('Error processing image. Please try another image.');
+  }
+};
 
 // Wait for OpenCV to be ready
 const waitForOpenCV = () => {
@@ -103,42 +408,6 @@ const saveImage = async (canvas: HTMLCanvasElement, prefix: string) => {
     alert('Failed to save image. Please try again.');
   }
 };
-
-// Process the image (either from file or camera)
-const processImage = (imageElement: HTMLImageElement | HTMLCanvasElement) => {
-  if (!documentScanner) {
-    alert('Document scanner is not ready yet. Please wait.');
-    return;
-  }
-
-  try {
-    // Store original canvas
-    const originalCanvas = document.createElement('canvas');
-    originalCanvas.width = imageElement instanceof HTMLCanvasElement ? imageElement.width : imageElement.naturalWidth;
-    originalCanvas.height = imageElement instanceof HTMLCanvasElement ? imageElement.height : imageElement.naturalHeight;
-    const originalCtx = originalCanvas.getContext('2d')!;
-    originalCtx.drawImage(imageElement, 0, 0);
-    lastOriginalImage = originalCanvas;
-
-    // Detect document corners
-    const points = documentScanner.detect(imageElement)
-    
-    // Crop and transform the image
-    const processedCanvas = documentScanner.crop(imageElement, points)
-    lastProcessedImage = processedCanvas;
-    
-    // Display processed image
-    outputImg.src = processedCanvas.toDataURL('image/jpeg', 1.0)
-    outputImg.style.display = 'block'
-
-    // Show save buttons
-    saveOriginalBtn.style.display = 'inline-block';
-    saveProcessedBtn.style.display = 'inline-block';
-  } catch (error) {
-    console.error('Error processing image:', error)
-    alert('Error processing image. Please try another image.')
-  }
-}
 
 // Event listeners for save buttons
 saveOriginalBtn.addEventListener('click', () => {

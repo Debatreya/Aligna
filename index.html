@@ -9,6 +9,12 @@
       var Module = {
         onRuntimeInitialized() {
           document.getElementById('status').innerHTML = 'OpenCV.js is ready.';
+          setTimeout(() => {
+            const statusEl = document.getElementById('status');
+            if (statusEl) {
+              statusEl.remove();
+            }
+          }, 2000);
         }
       };
     </script>

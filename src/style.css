@@ -101,12 +101,16 @@ button:focus-visible {
   margin-top: 2rem;
   flex-wrap: wrap;
   justify-content: center;
+  width: 100%;
 }
 
 .image-wrapper {
   flex: 1;
   min-width: 300px;
   max-width: 600px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .image-wrapper img {
@@ -114,6 +118,8 @@ button:focus-visible {
   height: auto;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  object-fit: contain;
+  max-height: 70vh;
 }
 
 .input-controls {
@@ -153,4 +159,116 @@ button:focus-visible {
 
 button {
   min-width: 120px;
+}
+
+.image-container-with-corners {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+}
+
+.corner-controls {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.corner {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  background-color: rgba(0, 123, 255, 0.7);
+  border: 2px solid white;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  cursor: move;
+  pointer-events: auto;
+  z-index: 1000;
+}
+
+.corner.dragging {
+  background-color: rgba(255, 123, 0, 0.7);
+  transform: translate(-50%, -50%) scale(1.2);
+}
+
+.corner-adjustment-controls {
+  margin-top: 1rem;
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+/* Corner positions */
+.corner.top-left {
+  top: 0;
+  left: 0;
+}
+
+.corner.top-right {
+  top: 0;
+  right: 0;
+  transform: translate(50%, -50%);
+}
+
+.corner.bottom-right {
+  bottom: 0;
+  right: 0;
+  transform: translate(50%, 50%);
+}
+
+.corner.bottom-left {
+  bottom: 0;
+  left: 0;
+  transform: translate(-50%, 50%);
+}
+
+/* Add touch support */
+@media (hover: none) and (pointer: coarse) {
+  .corner {
+    width: 30px;
+    height: 30px;
+  }
+}
+
+.enhancement-controls {
+  margin-top: 1rem;
+  text-align: center;
+}
+
+.enhancement-controls h4 {
+  margin-bottom: 0.5rem;
+  font-size: 1rem;
+}
+
+.enhancement-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.enhancement-buttons button {
+  min-width: 80px;
+  background-color: #f5f5f5;
+  color: #333;
+  border: 2px solid #e0e0e0;
+}
+
+.enhancement-buttons button.active {
+  background-color: #646cff;
+  color: white;
+  border-color: #535bf2;
+}
+
+.enhancement-buttons button:hover {
+  background-color: #e4e1ff;
+  color: #333;
+}
+
+.enhancement-buttons button.active:hover {
+  background-color: #535bf2;
+  color: white;
 }
