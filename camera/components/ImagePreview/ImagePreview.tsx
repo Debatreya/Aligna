@@ -34,6 +34,7 @@ export default function ImagePreview({
   const latestCornersRef = useRef(localCorners);
   const originalRef = useRef(original);
   const isDocLockedRef = useRef(isDocLocked);
+  const cornersUpdateKey = useRef(0); // Used to track when corners are updated
   
   // Update refs when props change
   useEffect(() => {
@@ -43,12 +44,24 @@ export default function ImagePreview({
   
   // Update local corners when props change
   useEffect(() => {
+    if (!corners) return;
+    
     setLocalCorners(corners);
     latestCornersRef.current = corners;
+    
     // Calculate the auto-detected aspect ratio when corners change
-    if (corners && corners.length === 4) {
+    if (corners.length === 4) {
       calculateAutoDetectedRatio(corners);
     }
+    
+    // Increment the update key to trigger a redraw
+    cornersUpdateKey.current += 1;
+    
+    // Redraw corners on the canvas whenever they change
+    setTimeout(() => {
+      drawCorners();
+    }, 0);
+    
   }, [corners]);
 
   useEffect(() => {
@@ -223,9 +236,6 @@ export default function ImagePreview({
       ctx.arc(point.x, point.y, cornerPointRadius / 3, 0, 2 * Math.PI);
       ctx.fill();
     });
-
-    // Update auto-detected ratio when corners change
-    calculateAutoDetectedRatio(localCorners);
   };
 
   // Debounced version of onCornersChange to avoid excessive processing
@@ -351,6 +361,9 @@ export default function ImagePreview({
     
     // Call the onAutoDetect callback from the parent component
     onAutoDetect();
+    
+    // Note: The corners prop will be updated by the parent component,
+    // which will trigger the useEffect to update localCorners and redraw
   };
 
   const handleToggleLock = () => {
@@ -359,6 +372,11 @@ export default function ImagePreview({
     onDocLockToggle?.(newLockState);
     // Update the ref immediately for UI updates
     isDocLockedRef.current = newLockState;
+    
+    // Ensure corners are properly drawn after lock state changes
+    setTimeout(() => {
+      drawCorners();
+    }, 0);
   };
 
   const handleSaveOriginal = () => {
