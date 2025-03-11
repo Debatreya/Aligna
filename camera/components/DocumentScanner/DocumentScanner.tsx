@@ -7,6 +7,11 @@ import CameraCapture from '../CameraCapture/CameraCapture';
 import ImagePreview from '../ImagePreview/ImagePreview';
 import styles from './styles.module.css';
 
+// Helper function to create a deep copy of points array
+const clonePoints = (points: Point[]): Point[] => {
+  return points.map(point => ({ ...point }));
+};
+
 const DocumentScanner = forwardRef<{ handleImageCapture: (canvas: HTMLCanvasElement) => Promise<void> }, DocumentScannerProps>(
   ({ onImageProcessed, onError }, ref) => {
     const [documentScanner, setDocumentScanner] = useState<Scanner | null>(null);
@@ -51,8 +56,8 @@ const DocumentScanner = forwardRef<{ handleImageCapture: (canvas: HTMLCanvasElem
         
         // Detect corners and store them - using original detection algorithm
         const detectedCorners = documentScanner.detect(canvas);
-        setDetectedCorners([...detectedCorners]); // Store a copy of the detected corners
-        setCorners([...detectedCorners]); // Set initial working corners
+        setDetectedCorners(clonePoints(detectedCorners)); // Store a copy of the detected corners
+        setCorners(clonePoints(detectedCorners)); // Set initial working corners
         
         // Crop with detected corners
         const croppedCanvas = documentScanner.crop(canvas, detectedCorners);
@@ -79,7 +84,7 @@ const DocumentScanner = forwardRef<{ handleImageCapture: (canvas: HTMLCanvasElem
       
       try {
         // Update corner points
-        setCorners(newCorners);
+        setCorners(clonePoints(newCorners));
         
         // Crop with new corners
         const croppedCanvas = documentScanner.crop(originalImage, newCorners);
@@ -99,10 +104,8 @@ const DocumentScanner = forwardRef<{ handleImageCapture: (canvas: HTMLCanvasElem
       if (!detectedCorners || !originalImage || !documentScanner) return;
       
       try {
-        console.log('Applying auto-detected corners');
-        
         // Reset to the original detected corners (create a fresh copy)
-        const originalDetectedCorners = [...detectedCorners];
+        const originalDetectedCorners = clonePoints(detectedCorners);
         setCorners(originalDetectedCorners);
         
         // Re-crop with original detected corners
@@ -262,9 +265,6 @@ const DocumentScanner = forwardRef<{ handleImageCapture: (canvas: HTMLCanvasElem
           console.error('Error locking document:', error);
           onError?.(error instanceof Error ? error : new Error('Failed to lock document'));
         }
-      } else if (!locked) {
-        // When unlocking, we keep the current corners but allow changes
-        console.log('Document unlocked - corner adjustments enabled');
       }
     }, [corners, originalImage, documentScanner, enhancementMode, onImageProcessed, onError]);
 

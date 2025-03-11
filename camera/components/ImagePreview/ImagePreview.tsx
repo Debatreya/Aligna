@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { ImagePreviewProps, Point, AspectRatio } from '@/lib/types';
 import { downloadCanvas } from '@/utils/canvas-helpers';
+import { debounce } from '@/utils/debounce';
 import styles from './styles.module.css';
 
 export default function ImagePreview({
@@ -27,11 +28,23 @@ export default function ImagePreview({
   const [localCustomRatio, setLocalCustomRatio] = useState(customRatio);
   const [autoDetectedRatio, setAutoDetectedRatio] = useState<string>('Auto');
   const [timestamp, setTimestamp] = useState<string>('');
-  const cornerPointRadius = 12; // Increased from 5 for better touch support
+  const cornerPointRadius = 15; // Increased for better touch support
 
+  // Keep a reference to the latest corners
+  const latestCornersRef = useRef(localCorners);
+  const originalRef = useRef(original);
+  const isDocLockedRef = useRef(isDocLocked);
+  
+  // Update refs when props change
+  useEffect(() => {
+    originalRef.current = original;
+    isDocLockedRef.current = isDocLocked;
+  }, [original, isDocLocked]);
+  
   // Update local corners when props change
   useEffect(() => {
     setLocalCorners(corners);
+    latestCornersRef.current = corners;
     // Calculate the auto-detected aspect ratio when corners change
     if (corners && corners.length === 4) {
       calculateAutoDetectedRatio(corners);
@@ -145,6 +158,7 @@ export default function ImagePreview({
     drawCorners();
   }, [isDocLocked]);
 
+  // Draw corners on the canvas
   const drawCorners = () => {
     if (!originalCanvasRef.current || !localCorners) return;
     const ctx = originalCanvasRef.current.getContext('2d', { willReadFrequently: true });
@@ -155,18 +169,25 @@ export default function ImagePreview({
     
     // Create an image object if original is a string
     let img: HTMLImageElement | HTMLCanvasElement;
-    if (typeof original === 'string') {
+    if (typeof originalRef.current === 'string') {
       img = new Image();
-      img.src = original;
+      img.src = originalRef.current;
+      // Make sure the image is loaded before drawing
+      if (!(img as HTMLImageElement).complete) {
+        img.onload = () => drawCorners();
+        return;
+      }
+    } else if (originalRef.current) {
+      img = originalRef.current;
     } else {
-      img = original;
+      return;
     }
     
     // Draw the image
     ctx.drawImage(img, 0, 0);
 
     // Don't draw corners if document is locked
-    if (isDocLocked) return;
+    if (isDocLockedRef.current) return;
 
     // Draw connecting lines with improved rendering for better visibility
     ctx.strokeStyle = 'rgba(0, 255, 0, 0.8)';  // Slightly transparent green
@@ -206,6 +227,14 @@ export default function ImagePreview({
     // Update auto-detected ratio when corners change
     calculateAutoDetectedRatio(localCorners);
   };
+
+  // Debounced version of onCornersChange to avoid excessive processing
+  const debouncedProcessCorners = useCallback(
+    debounce((corners: Point[]) => {
+      onCornersChange?.(corners);
+    }, 200),
+    [onCornersChange]
+  );
 
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!localCorners || isDocLocked) return;
@@ -262,9 +291,16 @@ export default function ImagePreview({
 
     const newCorners = [...localCorners];
     newCorners[draggingPoint] = { x: scaledX, y: scaledY };
+    
+    // Update local state immediately for responsive UI
     setLocalCorners(newCorners);
-    onCornersChange?.(newCorners);
+    latestCornersRef.current = newCorners;
+    
+    // Redraw corners immediately 
     drawCorners();
+    
+    // Debounce the expensive processing
+    debouncedProcessCorners(newCorners);
   };
 
   const handleTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
@@ -282,16 +318,31 @@ export default function ImagePreview({
 
     const newCorners = [...localCorners];
     newCorners[draggingPoint] = { x: scaledX, y: scaledY };
+    
+    // Update local state immediately for responsive UI
     setLocalCorners(newCorners);
-    onCornersChange?.(newCorners);
+    latestCornersRef.current = newCorners;
+    
+    // Redraw corners immediately 
     drawCorners();
+    
+    // Debounce the expensive processing
+    debouncedProcessCorners(newCorners);
   };
 
   const handleMouseUp = () => {
+    if (draggingPoint !== null && latestCornersRef.current) {
+      // On mouse up, make sure we've applied the final position
+      onCornersChange?.(latestCornersRef.current);
+    }
     setDraggingPoint(null);
   };
 
   const handleTouchEnd = () => {
+    if (draggingPoint !== null && latestCornersRef.current) {
+      // On touch end, make sure we've applied the final position
+      onCornersChange?.(latestCornersRef.current);
+    }
     setDraggingPoint(null);
   };
 
@@ -299,7 +350,6 @@ export default function ImagePreview({
     if (!onAutoDetect || isDocLocked) return;
     
     // Call the onAutoDetect callback from the parent component
-    console.log('Auto detect button clicked');
     onAutoDetect();
   };
 
@@ -307,9 +357,8 @@ export default function ImagePreview({
     // Toggle the lock state and notify parent component
     const newLockState = !isDocLocked;
     onDocLockToggle?.(newLockState);
-    
-    // Redraw corners to show/hide them based on lock state
-    drawCorners();
+    // Update the ref immediately for UI updates
+    isDocLockedRef.current = newLockState;
   };
 
   const handleSaveOriginal = () => {
