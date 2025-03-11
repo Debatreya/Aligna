@@ -8,7 +8,7 @@ Aligna is a powerful document scanning application with intelligent corner detec
    - Optimized for performance with minimal dependencies
    - Simple and straightforward UI
 
-2. **Next.js Version** (in the `/camera` directory)
+2. **Next.js Version** (in the `/aligna-next` directory)
    - Advanced implementation with React and Next.js
    - Enhanced UI with responsive design
    - More features including aspect ratio controls and enhancement modes
